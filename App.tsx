@@ -32,11 +32,10 @@ const App: React.FC = () => {
   const [tip, setTip] = useState<string>('');
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const requestRef = useRef<number>(null);
+  const requestRef = useRef<number | null>(null);
   const lastTimeRef = useRef<number>(0);
   const keysPressed = useRef<Record<string, boolean>>({});
 
-  // Game Entities
   const playerRef = useRef<Player>({
     id: 'player',
     pos: { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2 },
@@ -111,7 +110,7 @@ const App: React.FC = () => {
   const nextLevel = useCallback(async () => {
     const nextLvl = level + 1;
     setLevel(nextLvl);
-    setHealth(100); // 다음 레벨 시 체력 회복
+    setHealth(100);
     setTimeLeft(SURVIVAL_GOAL_PER_LEVEL);
     playerRef.current.pos = { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2 };
     spawnZombies(5 + nextLvl * 2, nextLvl);
@@ -299,11 +298,9 @@ const App: React.FC = () => {
   }, []);
 
   const animate = useCallback((time: number) => {
-    if (lastTimeRef.current !== undefined) {
-      const deltaTime = time - lastTimeRef.current;
-      update(deltaTime);
-      draw();
-    }
+    const deltaTime = lastTimeRef.current ? time - lastTimeRef.current : 16;
+    update(deltaTime);
+    draw();
     lastTimeRef.current = time;
     requestRef.current = requestAnimationFrame(animate);
   }, [update, draw]);
@@ -311,12 +308,12 @@ const App: React.FC = () => {
   useEffect(() => {
     requestRef.current = requestAnimationFrame(animate);
     return () => {
-      if (requestRef.current) cancelAnimationFrame(requestRef.current);
+      if (requestRef.current !== null) cancelAnimationFrame(requestRef.current);
     };
   }, [animate]);
 
   return (
-    <div className="relative w-screen h-screen bg-[#09090b] flex items-center justify-center overflow-hidden">
+    <div className="relative w-full h-full bg-[#09090b] flex items-center justify-center overflow-hidden">
       <div className="relative w-[800px] h-[600px] bg-black shadow-2xl overflow-hidden rounded-lg border border-zinc-800">
         <canvas
           ref={canvasRef}
