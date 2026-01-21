@@ -13,16 +13,15 @@ import {
   INITIAL_LEVEL,
   SURVIVAL_GOAL_PER_LEVEL,
   OBSTACLE_COLOR
-} from './constants';
+} from './constants.ts';
 import { 
   GameState, 
   Player, 
   Zombie, 
-  Obstacle, 
-  Vector2D 
-} from './types';
-import { MainMenu, GameOver, HUD, LevelSuccess } from './components/UI';
-import { getSurvivalTip } from './services/geminiService';
+  Obstacle 
+} from './types.ts';
+import { MainMenu, GameOver, HUD, LevelSuccess } from './components/UI.tsx';
+import { getSurvivalTip } from './services/geminiService.ts';
 
 const App: React.FC = () => {
   const [gameState, setGameState] = useState<GameState>(GameState.MENU);
@@ -33,7 +32,7 @@ const App: React.FC = () => {
   const [tip, setTip] = useState<string>('');
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const requestRef = useRef<number>();
+  const requestRef = useRef<number>(null);
   const lastTimeRef = useRef<number>(0);
   const keysPressed = useRef<Record<string, boolean>>({});
 
@@ -57,7 +56,6 @@ const App: React.FC = () => {
     const zombieSpeed = ZOMBIE_BASE_SPEED + (currentLevel * 0.15);
     
     for (let i = 0; i < count; i++) {
-      // Spawn at edges
       let x, y;
       const edge = Math.floor(Math.random() * 4);
       if (edge === 0) { x = Math.random() * CANVAS_WIDTH; y = -ZOMBIE_RADIUS; }
@@ -87,7 +85,6 @@ const App: React.FC = () => {
       const x = 100 + Math.random() * (CANVAS_WIDTH - 200);
       const y = 100 + Math.random() * (CANVAS_HEIGHT - 200);
 
-      // Don't spawn on player
       const dx = x + width / 2 - playerRef.current.pos.x;
       const dy = y + height / 2 - playerRef.current.pos.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
@@ -114,6 +111,7 @@ const App: React.FC = () => {
   const nextLevel = useCallback(async () => {
     const nextLvl = level + 1;
     setLevel(nextLvl);
+    setHealth(100); // 다음 레벨 시 체력 회복
     setTimeLeft(SURVIVAL_GOAL_PER_LEVEL);
     playerRef.current.pos = { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2 };
     spawnZombies(5 + nextLvl * 2, nextLvl);
@@ -154,18 +152,15 @@ const App: React.FC = () => {
     const moveY = (keysPressed.current['ArrowDown'] || keysPressed.current['KeyS'] ? 1 : 0) - 
                 (keysPressed.current['ArrowUp'] || keysPressed.current['KeyW'] ? 1 : 0);
 
-    // Normalize movement
     if (moveX !== 0 || moveY !== 0) {
       const length = Math.sqrt(moveX * moveX + moveY * moveY);
       const nextX = player.pos.x + (moveX / length) * player.speed;
       const nextY = player.pos.y + (moveY / length) * player.speed;
 
-      // Obstacle collision check
       let canMoveX = true;
       let canMoveY = true;
 
       obstaclesRef.current.forEach(obs => {
-        // Simple circle-rectangle collision
         const closestX = Math.max(obs.x, Math.min(nextX, obs.x + obs.width));
         const closestY = Math.max(obs.y, Math.min(nextY, obs.y + obs.height));
         const distanceX = nextX - closestX;
@@ -182,7 +177,6 @@ const App: React.FC = () => {
       if (canMoveY) player.pos.y = Math.max(player.radius, Math.min(CANVAS_HEIGHT - player.radius, nextY));
     }
 
-    // Update zombies
     zombiesRef.current.forEach(zombie => {
       const dx = player.pos.x - zombie.pos.x;
       const dy = player.pos.y - zombie.pos.y;
@@ -193,7 +187,6 @@ const App: React.FC = () => {
         zombie.pos.y += (dy / dist) * zombie.speed;
       }
 
-      // Check for collision with obstacles
       obstaclesRef.current.forEach(obs => {
         const closestX = Math.max(obs.x, Math.min(zombie.pos.x, obs.x + obs.width));
         const closestY = Math.max(obs.y, Math.min(zombie.pos.y, obs.y + obs.height));
@@ -202,14 +195,12 @@ const App: React.FC = () => {
         const distanceSquared = (distanceX * distanceX) + (distanceY * distanceY);
 
         if (distanceSquared < zombie.radius * zombie.radius) {
-          // Push zombie out
           const angle = Math.atan2(zombie.pos.y - closestY, zombie.pos.x - closestX);
           zombie.pos.x = closestX + Math.cos(angle) * (zombie.radius + 1);
           zombie.pos.y = closestY + Math.sin(angle) * (zombie.radius + 1);
         }
       });
 
-      // Player collision
       if (dist < player.radius + zombie.radius) {
         const now = Date.now();
         if (now - lastDamageTimeRef.current > 500) {
@@ -226,7 +217,6 @@ const App: React.FC = () => {
       }
     });
 
-    // Update score and time
     setTimeLeft(prev => {
       const nextTime = prev - deltaTime / 1000;
       if (nextTime <= 0) {
@@ -245,11 +235,9 @@ const App: React.FC = () => {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Clear
     ctx.fillStyle = '#09090b';
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-    // Grid (Atmosphere)
     ctx.strokeStyle = '#18181b';
     ctx.lineWidth = 1;
     for (let i = 0; i < CANVAS_WIDTH; i += 40) {
@@ -265,7 +253,6 @@ const App: React.FC = () => {
       ctx.stroke();
     }
 
-    // Obstacles
     ctx.fillStyle = OBSTACLE_COLOR;
     ctx.strokeStyle = '#374151';
     ctx.lineWidth = 2;
@@ -274,32 +261,27 @@ const App: React.FC = () => {
       ctx.strokeRect(obs.x, obs.y, obs.width, obs.height);
     });
 
-    // Zombies
     zombiesRef.current.forEach(zombie => {
       ctx.fillStyle = zombie.color;
       ctx.beginPath();
       ctx.arc(zombie.pos.x, zombie.pos.y, zombie.radius, 0, Math.PI * 2);
       ctx.fill();
-      // Glow
       ctx.shadowBlur = 10;
       ctx.shadowColor = zombie.color;
       ctx.stroke();
       ctx.shadowBlur = 0;
     });
 
-    // Player
     const player = playerRef.current;
     ctx.fillStyle = player.color;
     ctx.beginPath();
     ctx.arc(player.pos.x, player.pos.y, player.radius, 0, Math.PI * 2);
     ctx.fill();
-    // Glow
     ctx.shadowBlur = 15;
     ctx.shadowColor = player.color;
     ctx.stroke();
     ctx.shadowBlur = 0;
 
-    // Player direction indicator
     const moveX = (keysPressed.current['ArrowRight'] || keysPressed.current['KeyD'] ? 1 : 0) - 
                 (keysPressed.current['ArrowLeft'] || keysPressed.current['KeyA'] ? 1 : 0);
     const moveY = (keysPressed.current['ArrowDown'] || keysPressed.current['KeyS'] ? 1 : 0) - 

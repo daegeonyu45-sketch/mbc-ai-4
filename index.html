@@ -7,6 +7,10 @@
     <title>네온 서바이벌: 좀비 아웃브레이크</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Inter:wght@400;600&family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
+    <script>
+        // 브라우저에서 process.env 참조 시 발생하는 ReferenceError 방지
+        window.process = { env: { API_KEY: "" } };
+    </script>
     <style>
         body {
             margin: 0;
@@ -36,5 +40,7 @@
 </head>
 <body>
     <div id="root"></div>
+    <!-- 앱의 진입점인 index.tsx를 명시적으로 로드 -->
+    <script type="module" src="./index.tsx"></script>
 </body>
 </html>
